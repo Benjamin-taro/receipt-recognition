@@ -23,7 +23,7 @@
        const markdown = await ocr({
          fileBase64: base64,                  // fs を使わないので簡潔
          apiKey: process.env.TOGETHER_API_KEY,
-         model: process.env.LLAMA_MODEL ?? "free",   // "free" を明示
+         model: "free",                                // ← ここを固定リテラルに
          prompt:
            "This is an English receipt. Extract all text exactly as it appears and output it in Markdown.",
          temperature: 0,
