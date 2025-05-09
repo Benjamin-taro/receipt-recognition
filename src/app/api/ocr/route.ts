@@ -1,10 +1,10 @@
-// src/app/api/ocr/route.ts
-// ✅  1) Edge → Node.js ランタイムへ
-export const runtime = "nodejs";   // あるいは行ごと削除（既定が Node）
+// ✅ 1) Edge → Node.js
+export const runtime = "nodejs";
 
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
+import { randomUUID } from "crypto";       // ← 追加
 import { ocr } from "llama-ocr";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,16 +13,20 @@ export async function POST(req: NextRequest) {
   const file = form.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });
 
-  // ✅ 2) Node の tmp ディレクトリに書き込む
-  const tmp = path.join(os.tmpdir(), `${crypto.randomUUID()}.jpg`);
+  // ✅ 2) Node の tmp ディレクトリへ
+  const tmp = path.join(os.tmpdir(), `${randomUUID()}.jpg`);
   await fs.writeFile(tmp, Buffer.from(await file.arrayBuffer()));
 
-  // llama‑ocr は tmp パスをそのまま読める
-  const markdown = await ocr({
-    filePath: tmp,
-    apiKey: process.env.TOGETHER_API_KEY!,
-    model: "free",
-  });
-
-  return NextResponse.json({ markdown });
+  try {
+    const markdown = await ocr({
+      filePath: tmp,
+      apiKey: process.env.TOGETHER_API_KEY!,
+      model: "free",            // 無料モデルを明示
+    });
+    console.log("OCR len:", markdown.length);   // ← ログに出る
+    return NextResponse.json({ markdown });
+  } catch (e) {
+    console.error("OCR error:", e);             // ← エラーも出す
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
