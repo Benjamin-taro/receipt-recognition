@@ -22,15 +22,11 @@
 
      /* 3) llama‑ocr 呼び出し */
      try {
-       const markdown = await ocr({
-        filePath: tmp,                 // ← 型が通る
-        apiKey: process.env.TOGETHER_API_KEY,
-         model: "free",                                // ← ここを固定リテラルに
-         prompt:
-           "This is an English receipt. Extract all text exactly as it appears and output it in Markdown.",
-         temperature: 0,
-         maxTokens: 1024,
-       });
+        const markdown = await ocr({
+            filePath: tmp,
+            apiKey: process.env.TOGETHER_API_KEY!,
+            model: "free",           // 無料エンドポイント
+          });
    
        if (!markdown.trim()) {
          /* 空返り＝失敗扱いにしてフロントでハンドリングしやすく */
