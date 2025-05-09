@@ -1,21 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ocr } from "llama-ocr";
+// src/app/api/ocr/route.ts
+// ✅  1) Edge → Node.js ランタイムへ
+export const runtime = "nodejs";   // あるいは行ごと削除（既定が Node）
 
-export const runtime = "edge";
-export const maxDuration = 60;
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
+import { ocr } from "llama-ocr";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const fd = await req.formData();
-  const file = fd.get("file") as File | null;
-  if (!file) return NextResponse.json({ error:"no file" },{ status:400 });
+  const form = await req.formData();
+  const file = form.get("file") as File | null;
+  if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });
 
-  const path = `/tmp/${crypto.randomUUID()}.jpg`;
-  await Bun.write(path, new Uint8Array(await file.arrayBuffer()));
+  // ✅ 2) Node の tmp ディレクトリに書き込む
+  const tmp = path.join(os.tmpdir(), `${crypto.randomUUID()}.jpg`);
+  await fs.writeFile(tmp, Buffer.from(await file.arrayBuffer()));
 
+  // llama‑ocr は tmp パスをそのまま読める
   const markdown = await ocr({
-    filePath: path,
+    filePath: tmp,
     apiKey: process.env.TOGETHER_API_KEY!,
-    model: process.env.LLAMA_MODEL || "free",
+    model: "free",
   });
 
   return NextResponse.json({ markdown });
