@@ -13,14 +13,12 @@
        /* 1) 画像ファイルを受け取る */
        const form = await req.formData();
        const file = form.get("file") as File | null;
-       const tmp = path.join(os.tmpdir(), `${Date.now()}.jpg`);
-       await fs.writeFile(tmp, Buffer.from(await file.arrayBuffer()));
-     if (!file) {
-       return NextResponse.json({ error: "no file" }, { status: 400 });
-     }
+       if (!file) {
+           return NextResponse.json({ error: "no file" }, { status: 400 });
+        }
+        const tmp = path.join(os.tmpdir(), `${Date.now()}.jpg`);
+        await fs.writeFile(tmp, Buffer.from(await file.arrayBuffer()));
    
-     /* 2) バイナリ → Base64（Edge でも Node でも動く方式） */
-     const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
      /* 3) llama‑ocr 呼び出し */
      try {
