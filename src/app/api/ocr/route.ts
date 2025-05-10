@@ -16,7 +16,7 @@
        if (!file) {
            return NextResponse.json({ error: "no file" }, { status: 400 });
         }
-        const tmp = path.join(os.tmpdir(), ${Date.now()}.jpg);
+        const tmp = path.join(os.tmpdir(), `${Date.now()}.jpg`);
         await fs.writeFile(tmp, Buffer.from(await file.arrayBuffer()));
    
 
