@@ -40,41 +40,36 @@
      await fs.writeFile(tmp, resized);
    
      try {
-       let markdown = "";
-       let lastErr: unknown;
-   
-       /* 5) 指数バックオフ付きリトライ */
-       for (let attempt = 0; attempt < MAX_RETRY; ++attempt) {
-         try {
-           markdown = await ocr({
-             filePath: tmp,
-             apiKey : process.env.TOGETHER_API_KEY!,
-             model  : "free",
-           });
-   
-           /* 成功条件：非空文字列 */
-           if (markdown.trim().length) break;
-           throw new Error("empty-response");
-         } catch (err) {
-           lastErr = err;
-           if (attempt < MAX_RETRY - 1) {
-             await wait(BACKOFF[attempt]);           // 2 → 4 → 8 秒
-             continue;                               // リトライ
-           }
-           throw err;                                // 上限に達したら投げる
-         }
-       }
-   
-       console.log("OCR len:", markdown.length, "| file:", tmp);
-       return NextResponse.json({ markdown });
-   
-     } catch (e) {
-       console.error("llama‑ocr error:", e);
-       /* 空返りや 429/5xx は 502 扱いに寄せるとフロントで判定しやすい */
-       return NextResponse.json({ error: String(e) }, { status: 502 });
-     } finally {
-       /* 6) tmp 掃除（容量逼迫防止）*/
-       fs.unlink(tmp).catch(() => {});
-     }
-   }
+        let markdown = "";
+    
+        /* 5) 指数バックオフ付きリトライ */
+        for (let attempt = 0; attempt < MAX_RETRY; ++attempt) {
+          try {
+            markdown = await ocr({
+              filePath: tmp,
+              apiKey : process.env.TOGETHER_API_KEY!,
+              model  : "free",
+            });
+    
+            if (markdown.trim().length) break;   // 成功
+            throw new Error("empty-response");    // 空なら失敗
+          } catch (err) {
+            if (attempt < MAX_RETRY - 1) {
+              await wait(BACKOFF[attempt]);       // 2→4→8…
+              continue;                           // リトライ
+            }
+            throw err;                            // 上限で投げる
+          }
+        }
+    
+        console.log("OCR len:", markdown.length, "| file:", tmp);
+        return NextResponse.json({ markdown });
+    
+      } catch (e) {
+        console.error("llama-ocr error:", e);
+        return NextResponse.json({ error: String(e) }, { status: 502 });
+      } finally {
+        fs.unlink(tmp).catch(() => {});
+      }
+    }
    
