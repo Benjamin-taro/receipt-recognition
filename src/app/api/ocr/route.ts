@@ -8,8 +8,15 @@
    import { promises as fs } from "fs";
    import os from "os";
    import path from "path";
-   import sharp from "sharp";                 // ★ 追加 (npm i sharp)
+   import sharp from "sharp";
    import { ocr } from "llama-ocr";
+   
+   const MAX_RETRY = 5;                  // 試行回数
+   const BACKOFF   = [2000, 4000, 8000, 16000, 32000]; // ms
+   
+   /* simple sleep */
+   const wait = (ms: number) =>
+     new Promise<void>(resolve => setTimeout(resolve, ms));
    
    export async function POST(req: NextRequest) {
      /* 1) 画像ファイルを受け取る */
@@ -19,42 +26,54 @@
        return NextResponse.json({ error: "no file" }, { status: 400 });
      }
    
-     /* 2) ArrayBuffer → Buffer に変換 */
+     /* 2) ArrayBuffer → Buffer */
      const original = Buffer.from(await file.arrayBuffer());
    
-     /* 3) sharp で長辺 1120px 以下へリサイズ（JPEG 80% 品質） */
+     /* 3) リサイズ & 再エンコード（長辺1120 / JPEG 80%） */
      const resized = await sharp(original)
        .resize({ width: 1120, height: 1120, fit: "inside" })
        .jpeg({ quality: 80 })
        .toBuffer();
    
-     /* 4) /tmp に書き出し */
+     /* 4) /tmp に保存 */
      const tmp = path.join(os.tmpdir(), `${Date.now()}.jpg`);
      await fs.writeFile(tmp, resized);
    
      try {
-       /* 5) llama‑ocr 呼び出し */
-       const markdown = await ocr({
-         filePath: tmp,
-         apiKey: process.env.TOGETHER_API_KEY!,
-         model: "Llama-3.2-11B-Vision",
-       });
+       let markdown = "";
+       let lastErr: unknown;
    
-       console.log("OCR len:", markdown.length, "| file:", tmp);
+       /* 5) 指数バックオフ付きリトライ */
+       for (let attempt = 0; attempt < MAX_RETRY; ++attempt) {
+         try {
+           markdown = await ocr({
+             filePath: tmp,
+             apiKey : process.env.TOGETHER_API_KEY!,
+             model  : "free",
+           });
    
-       if (!markdown.trim()) {
-         return NextResponse.json(
-           { error: "OCR failed (empty result)" },
-           { status: 502 },
-         );
+           /* 成功条件：非空文字列 */
+           if (markdown.trim().length) break;
+           throw new Error("empty-response");
+         } catch (err) {
+           lastErr = err;
+           if (attempt < MAX_RETRY - 1) {
+             await wait(BACKOFF[attempt]);           // 2 → 4 → 8 秒
+             continue;                               // リトライ
+           }
+           throw err;                                // 上限に達したら投げる
+         }
        }
    
+       console.log("OCR len:", markdown.length, "| file:", tmp);
        return NextResponse.json({ markdown });
+   
      } catch (e) {
        console.error("llama‑ocr error:", e);
-       return NextResponse.json({ error: String(e) }, { status: 500 });
+       /* 空返りや 429/5xx は 502 扱いに寄せるとフロントで判定しやすい */
+       return NextResponse.json({ error: String(e) }, { status: 502 });
      } finally {
-       /* 6) 一時ファイルを掃除 */
+       /* 6) tmp 掃除（容量逼迫防止）*/
        fs.unlink(tmp).catch(() => {});
      }
    }
