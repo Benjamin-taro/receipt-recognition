@@ -37,7 +37,7 @@
        const markdown = await ocr({
          filePath: tmp,
          apiKey: process.env.TOGETHER_API_KEY!,
-         model: "free",
+         model: "Llama-3.2-11B-Vision",
        });
    
        console.log("OCR len:", markdown.length, "| file:", tmp);
