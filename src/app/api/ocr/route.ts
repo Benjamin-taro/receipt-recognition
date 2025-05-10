@@ -38,6 +38,8 @@
          );
        }
    
+
+       
        return NextResponse.json({ markdown });
      } catch (e) {
        console.error("llama‑ocr error:", e);
