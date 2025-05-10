@@ -33,23 +33,18 @@
    
      /* 4) llama‑ocr 呼び出し */
      try {
-        const res: any = await ocr({
-            filePath: tmp,
-            apiKey: process.env.TOGETHER_API_KEY!,
-            model: "free",
-          });
-        console.log("RAW:", JSON.stringify(res).slice(0,300));   // ★追加
-          
-        const markdown = typeof res === "string" ? res : res?.choices?.[0]?.message?.content ?? "";
-  
+       const markdown = await ocr({
+         filePath: tmp,
+         apiKey: process.env.TOGETHER_API_KEY!,
+         model: "free",
+       });
+   
        console.log(
          "OCR len:", markdown.length,
          "| orig:", (origBuf.length / 1024).toFixed(1), "KB",
          "| resized:", (resized.length / 1024).toFixed(1), "KB"
        );
 
-       
-   
        if (!markdown.trim()) {
          return NextResponse.json(
            { error: "OCR failed (empty result)" },
