@@ -33,25 +33,31 @@
    
      /* 4) llama‑ocr 呼び出し */
      try {
-        const res: any = await ocr({
+        const res: unknown = await ocr({
           filePath: tmp,
           apiKey: process.env.TOGETHER_API_KEY!,
           model: "free",
         });
-        console.log("RAW:", JSON.stringify(res).slice(0,300));   // ★追加
-        const markdown = typeof res === "string" ? res : res?.choices?.[0]?.message?.content ?? "";
-
-       if (!markdown.trim()) {
-         return NextResponse.json(
-           { error: "OCR failed (empty result)" },
-           { status: 502 }
-         );
-       }
-   
-       return NextResponse.json({ markdown });
-     } catch (e) {
-       console.error("llama‑ocr error:", e);
-       return NextResponse.json({ error: String(e) }, { status: 500 });
-     }
-   }
-   
+      
+        // Debug: 生レスを先頭 300 文字だけ表示
+        console.log("RAW:", JSON.stringify(res).slice(0, 300));
+      
+        // 型ガードで文字列を取得
+        const markdown =
+          typeof res === "string"
+            ? res
+            : (res as { choices?: { message?: { content?: string } }[] })?.choices?.[0]
+                ?.message?.content ?? "";
+      
+        if (!markdown.trim()) {
+          return NextResponse.json(
+            { error: "OCR failed (empty result)" },
+            { status: 502 }
+          );
+        }
+        return NextResponse.json({ markdown });
+      } catch (e) {
+        console.error("llama-ocr error:", e);
+        return NextResponse.json({ error: String(e) }, { status: 500 });
+      }
+   } 
