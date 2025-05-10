@@ -27,6 +27,8 @@
             apiKey: process.env.TOGETHER_API_KEY!,
             model: "free",           // 無料エンドポイント
           });
+        
+        console.log("OCR len:", markdown.length, "| file:", tmp);
    
        if (!markdown.trim()) {
          /* 空返り＝失敗扱いにしてフロントでハンドリングしやすく */
